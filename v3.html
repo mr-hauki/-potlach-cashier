@@ -5,20 +5,20 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#f3f3ef">
   <title>Потлач — касса</title>
-  <link rel="manifest" href="manifest.webmanifest?v=5">
+  <link rel="manifest" href="manifest.webmanifest?v=6">
 </head>
 <body>
   <p style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;padding:24px">Загрузка кассы…</p>
   <script>
     (async () => {
-      const response = await fetch('./index.html?base=v5', {cache: 'no-store'});
+      const response = await fetch('./index.html?base=v6', {cache: 'no-store'});
       let html = await response.text();
-      html = html.replace('</body>', '<script src="./global-config.js?v=5"><\/script></body>');
+      html = html.replace('</body>', '<script src="./global-config.js?v=6"><\/script></body>');
       document.open();
       document.write(html);
       document.close();
     })().catch((error) => {
-      document.body.innerHTML = '<p style="font-family:sans-serif;padding:24px">Не удалось загрузить кассу. Провь интернет и обнови страницу.</p>';
+      document.body.innerHTML = '<p style="font-family:sans-serif;padding:24px">Не удалось загрузить кассу. Проверь интернет и обнови страницу.</p>';
       console.error(error);
     });
   </script>
