@@ -1,6 +1,6 @@
-const CACHE='potlach-public-v5';
-const FALLBACK='./v3.html?v=5';
-const ASSETS=['./v3.html?v=5','./index.html?base=v5','./global-config.js?v=5','./manifest.webmanifest?v=5'];
+const CACHE='potlach-public-v6';
+const FALLBACK='./v3.html?v=6';
+const ASSETS=['./v3.html?v=6','./index.html?base=v6','./global-config.js?v=6','./manifest.webmanifest?v=6'];
 
 self.addEventListener('install',(event)=>{
   event.waitUntil(caches.open(CACHE).then((cache)=>cache.addAll(ASSETS)));
