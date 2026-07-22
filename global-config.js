@@ -4,6 +4,7 @@
   const TABLE = 'event_settings';
   let loading = false;
   let saveChain = Promise.resolve();
+  let skipNextSharedSave = false;
 
   const localPersist = persist;
 
@@ -77,6 +78,10 @@
 
   persist = function patchedPersist(options = {}) {
     localPersist();
+    if (skipNextSharedSave) {
+      skipNextSharedSave = false;
+      return;
+    }
     if (options.shared !== false && options.global !== false) queueSave();
   };
 
@@ -156,7 +161,7 @@
   const saveCashierButton = document.getElementById('saveCashier');
   if (saveCashierButton) {
     saveCashierButton.addEventListener('click', () => {
-      setTimeout(() => localPersist(), 0);
+      skipNextSharedSave = true;
     }, true);
   }
 
