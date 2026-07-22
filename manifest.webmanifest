@@ -1,7 +1,7 @@
 {
   "name": "Потлач — касса",
   "short_name": "Потлач",
-  "start_url": "./v3.html?v=4",
+  "start_url": "./v3.html?v=5",
   "scope": "./",
   "display": "standalone",
   "background_color": "#f3f3ef",
