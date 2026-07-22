@@ -1,6 +1,6 @@
-const CACHE='potlach-public-v4';
-const FALLBACK='./v3.html?v=4';
-const ASSETS=['./v3.html?v=4','./index.html','./global-config.js?v=4','./manifest.webmanifest?v=4'];
+const CACHE='potlach-public-v5';
+const FALLBACK='./v3.html?v=5';
+const ASSETS=['./v3.html?v=5','./index.html?base=v5','./global-config.js?v=5','./manifest.webmanifest?v=5'];
 
 self.addEventListener('install',(event)=>{
   event.waitUntil(caches.open(CACHE).then((cache)=>cache.addAll(ASSETS)));
@@ -31,15 +31,14 @@ self.addEventListener('fetch',(event)=>{
     return;
   }
   event.respondWith(
-    caches.match(event.request).then((cached)=>{
-      const network=fetch(event.request).then((response)=>{
+    fetch(event.request)
+      .then((response)=>{
         if(response.ok && event.request.url.startsWith(self.location.origin)){
           const copy=response.clone();
           caches.open(CACHE).then((cache)=>cache.put(event.request,copy));
         }
         return response;
-      });
-      return cached||network;
-    })
+      })
+      .catch(()=>caches.match(event.request))
   );
 });
