@@ -1,1 +1,728 @@
-<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#111"><meta name="apple-mobile-web-app-capable" content="yes"><title>Потлач — касса</title><link rel="manifest" href="manifest.webmanifest"><style>:root{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#111;background:#f3f3ef}*{box-sizing:border-box}body{margin:0;padding:0 0 82px}header{position:sticky;top:0;z-index:5;padding:calc(14px + env(safe-area-inset-top)) 16px 12px;background:#f3f3eff2;border-bottom:1px solid #d8d8d2}header small{display:block;color:#666;margin-top:4px}main{max-width:680px;margin:auto;padding:14px}.view{display:none}.view.active{display:block}fieldset{border:0;padding:0;margin:0 0 18px}legend{font-weight:800;margin-bottom:9px}.grid{display:grid;grid-template-columns:repeat(2,1fr);gap:9px}.choice,button,label.file{min-height:50px;border:1px solid #d4d4ce;border-radius:13px;background:#fff;padding:11px;font-weight:750}.choice.active{border:2px solid #111;background:#e9e9e4;padding:10px}input,select{width:100%;padding:13px;border:1px solid #d4d4ce;border-radius:12px;background:#fff;font:inherit}.amount{font-size:27px;font-weight:800}.primary{width:100%;border:0;background:#111;color:#fff;font-size:17px}.success{width:100%;border:0;background:#16853f;color:#fff;font-size:17px}.muted{color:#666;font-size:13px}.warning{padding:11px;border-radius:12px;background:#fff1c7;color:#765000;margin-bottom:12px}.hidden{display:none!important}.photo{display:block;width:100%;max-height:250px;object-fit:contain;border-radius:12px;margin-top:8px;background:#fff}.card{background:#fff;border:1px solid #d8d8d2;border-radius:14px;padding:12px;margin-bottom:10px}.card img{width:86px;height:86px;object-fit:cover;border-radius:10px;float:left;margin-right:10px}.money{font-size:20px;font-weight:850}.status{font-size:12px;font-weight:700}.pending{color:#8a5b00}.synced{color:#16853f}.error{color:#b42318}.row{display:flex;gap:8px}.row>*{flex:1}.summary{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px}.summary div{background:#fff;border-radius:12px;padding:10px}.summary small{color:#666}.summary strong{display:block;margin-top:4px}nav{position:fixed;bottom:0;left:0;right:0;display:grid;grid-template-columns:repeat(3,1fr);padding:8px 10px calc(8px + env(safe-area-inset-bottom));background:#fffffff2;border-top:1px solid #ddd}nav button{border:0;background:transparent}nav button.active{background:#e9e9e4}#toast{position:fixed;bottom:90px;left:50%;transform:translateX(-50%);background:#111;color:#fff;padding:12px 16px;border-radius:12px;z-index:20}.qr{display:block;width:min(80vw,340px);margin:12px auto;background:#fff;border-radius:12px}textarea{width:100%;min-height:70px;border:1px solid #d4d4ce;border-radius:12px;padding:12px;font:inherit}@media(min-width:560px){.grid{grid-template-columns:repeat(3,1fr)}}</style></head><body><header><strong>ПОТЛАЧ — КАССА</strong><small><span id="cashierBadge">кассир не задан</span> · <span id="onlineBadge">локально</span></small></header><main><section id="operation" class="view active"><div id="profileWarning" class="warning">Сначала задай имя кассира в настройках.</div><fieldset><legend>1. Тип</legend><div class="grid"><button class="choice active" data-kind="income">Приход</button><button class="choice" data-kind="expense">Расход</button></div></fieldset><fieldset><legend>2. Категория</legend><div id="categories" class="grid"></div></fieldset><fieldset><legend>3. Автор / направление</legend><div id="subjects" class="grid"></div></fieldset><fieldset><legend>4. Сумма</legend><input id="amount" class="amount" inputmode="numeric" placeholder="3000"></fieldset><fieldset><legend>5. Оплата</legend><div class="grid"><button class="choice active" data-payment="СБП / перевод">СБП / перевод</button><button class="choice" data-payment="Наличные">Наличные</button></div></fieldset><fieldset id="accountBlock"><legend>6. Счёт</legend><div id="accounts" class="grid"></div></fieldset><fieldset><legend>7. Комментарий</legend><div class="row"><textarea id="note" placeholder="ТЕСТ, спорное авторство, с какой полки"></textarea><button id="testBtn">ТЕСТ</button></div></fieldset><fieldset><legend>8. Фото <small id="photoHint" class="muted">необязательно</small></legend><label class="file">Сфотографировать<input id="photo" class="hidden" type="file" accept="image/*" capture="environment"></label><img id="preview" class="photo hidden"></fieldset><button id="save" class="primary">Показать QR</button><div id="qrPanel" class="card hidden"><div id="qrSummary"></div><img id="qr" class="qr hidden"><div id="noQr" class="warning hidden">QR для этого счёта не загружен.</div><button id="confirm" class="success">Оплачено — записать</button><button id="back" style="width:100%;margin-top:8px">Назад</button></div></section><section id="journal" class="view"><div class="summary"><div><small>Приход</small><strong id="sumIn">0 ₽</strong></div><div><small>Расход</small><strong id="sumOut">0 ₽</strong></div><div><small>Остаток</small><strong id="balance">0 ₽</strong></div></div><button id="sync" style="width:100%;margin-bottom:10px">Синхронизировать</button><div id="list"></div></section><section id="settings" class="view"><div class="card"><h3>Этот телефон</h3><div class="row"><input id="cashier" placeholder="Имя кассира"><button id="saveCashier">Сохранить</button></div></div><div class="card"><h3>Авторы и направления</h3><div class="row"><input id="newSubject" placeholder="Катя, Бар"><button id="addSubject">Добавить</button></div><div id="subjectSettings"></div></div><div class="card"><h3>Счета и QR</h3><input id="newAccount" placeholder="Маргарита"><label class="file" style="display:block;margin-top:8px">Выбрать QR<input id="newQr" class="hidden" type="file" accept="image/*"></label><button id="addAccount" style="width:100%;margin-top:8px">Добавить счёт</button><div id="accountSettings"></div></div></section></main><nav><button class="active" data-view="operation">Операция</button><button data-view="journal">Журнал</button><button data-view="settings">Настройки</button></nav><div id="toast" class="hidden"></div><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script><script>'use strict';const URL='https://dvgsixehiscqemfaddpn.supabase.co',KEY='sb_publishable_n2Ro5cvbbK0h7P4i6FN4dA_u-zHQCru',EVENT='potlach-24-2026',BUCKET='transaction-photos';const cloud=supabase.createClient(URL,KEY,{auth:{persistSession:false}});const $=id=>document.getElementById(id);const money=n=>new Intl.NumberFormat('ru-RU').format(Number(n)||0)+' ₽';const uuid=()=>crypto.randomUUID();const DEVICE=localStorage.deviceId||(localStorage.deviceId=uuid());let cfg=JSON.parse(localStorage.cfg||'null')||{cashier:'',subjects:[{name:'Автор неизвестен',active:true},{name:'Бар',active:true}],accounts:[]};let kind='income',payment='СБП / перевод',category='',subject='',account='',photoBlob=null;const cats={income:['Продажа работы','Бар — продажи','Прочее'],expense:['Бар — закупка','Организационные расходы','Прочее']};function persist(){localStorage.cfg=JSON.stringify(cfg);render()}function toast(t){$('toast').textContent=t;$('toast').classList.remove('hidden');setTimeout(()=>$('toast').classList.add('hidden'),2500)}function openDb(){return new Promise((res,rej)=>{let r=indexedDB.open('potlach-public-v1',1);r.onupgradeneeded=()=>r.result.createObjectStore('tx',{keyPath:'id'});r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)})}async function put(x){let d=await openDb();return new Promise((res,rej)=>{let t=d.transaction('tx','readwrite');t.objectStore('tx').put(x);t.oncomplete=()=>{d.close();res()};t.onerror=()=>rej(t.error)})}async function all(){let d=await openDb();return new Promise((res,rej)=>{let r=d.transaction('tx').objectStore('tx').getAll();r.onsuccess=()=>{d.close();res(r.result)};r.onerror=()=>rej(r.error)})}function render(){ $('cashierBadge').textContent=cfg.cashier?'кассир: '+cfg.cashier:'кассир не задан';$('profileWarning').classList.toggle('hidden',!!cfg.cashier);$('cashier').value=cfg.cashier;$('categories').innerHTML=cats[kind].map(x=>`<button class="choice ${category===x?'active':''}" data-cat="${x}">${x}</button>`).join('');$('subjects').innerHTML=cfg.subjects.filter(x=>x.active).map(x=>`<button class="choice ${subject===x.name?'active':''}" data-sub="${x.name}">${x.name}</button>`).join('');$('accounts').innerHTML=cfg.accounts.filter(x=>x.active).map(x=>`<button class="choice ${account===x.name?'active':''}" data-acc="${x.name}">${x.name}</button>`).join('')||'<span class="muted">Добавь счёт в настройках</span>';$('accountBlock').classList.toggle('hidden',payment==='Наличные');$('photoHint').textContent=/неизвест/i.test(subject)?'обязательно':'необязательно';$('save').textContent=kind==='income'&&payment!=='Наличные'?'Показать QR':kind==='income'?'Записать наличные':'Записать расход';$('subjectSettings').innerHTML=cfg.subjects.map((x,i)=>`<p>${x.name} <button data-toggle-sub="${i}">${x.active?'Скрыть':'Показать'}</button></p>`).join('');$('accountSettings').innerHTML=cfg.accounts.map((x,i)=>`<p>${x.name} · ${x.qr?'QR есть':'нет QR'} <button data-toggle-acc="${i}">${x.active?'Скрыть':'Показать'}</button></p>`).join('')}function draft(){let a=Number($('amount').value);if(!cfg.cashier)throw Error('Укажи кассира');if(!category)throw Error('Выбери категорию');if(!subject)throw Error('Выбери автора');if(!(a>0))throw Error('Введи сумму');if(payment!=='Наличные'&&!account)throw Error('Выбери счёт');if(/неизвест/i.test(subject)&&!photoBlob)throw Error('Для неизвестного автора нужно фото');return{a,note:$('note').value.trim()}}async function saveRecord(){try{let d=draft(),now=new Date().toISOString(),r={id:uuid(),eventId:EVENT,createdAt:now,updatedAt:now,deviceId:DEVICE,cashierName:cfg.cashier,kind,categoryName:category,subjectName:subject,authorshipStatus:/неизвест/i.test(subject)?'unknown':'known',amount:d.a,paymentMethod:payment,accountName:payment==='Наличные'?null:account,note:d.note,photoBlob,photoPath:null,photoUrl:null,voided:false,dirty:true,syncState:'pending'};await put(r);toast('✅ Записано: '+money(d.a));$('amount').value='';$('note').value='';$('photo').value='';$('preview').classList.add('hidden');photoBlob=null;category=subject=account='';$('qrPanel').classList.add('hidden');await showJournal();syncAll()}catch(e){toast(e.message)}}async function shrink(f){let img=new Image(),u=URL.createObjectURL(f);await new Promise((r,j)=>{img.onload=r;img.onerror=j;img.src=u});let s=Math.min(1,1000/Math.max(img.width,img.height)),c=document.createElement('canvas');c.width=img.width*s;c.height=img.height*s;c.getContext('2d').drawImage(img,0,0,c.width,c.height);URL.revokeObjectURL(u);return new Promise(r=>c.toBlob(r,'image/jpeg',.72))}async function syncOne(r){let path=r.photoPath;if(r.photoBlob&&!path){path=`${EVENT}/${r.id}.jpg`;let q=await cloud.storage.from(BUCKET).upload(path,r.photoBlob,{contentType:'image/jpeg',upsert:true});if(q.error)throw q.error}let row={id:r.id,event_id:EVENT,created_at:r.createdAt,updated_at:new Date().toISOString(),device_id:r.deviceId,cashier_name:r.cashierName,kind:r.kind,category_name:r.categoryName,subject_name:r.subjectName,authorship_status:r.authorshipStatus,amount:r.amount,payment_method:r.paymentMethod,account_name:r.accountName,note:r.note,photo_path:path,voided:r.voided};let q=await cloud.from('transactions').upsert(row);if(q.error)throw q.error;let pu=path?cloud.storage.from(BUCKET).getPublicUrl(path).data.publicUrl:null;await put({...r,photoBlob:null,photoPath:path,photoUrl:pu,dirty:false,syncState:'synced'})}async function syncAll(){if(!navigator.onLine)return;try{$('onlineBadge').textContent='синхронизация…';for(let r of (await all()).filter(x=>x.dirty)){try{await syncOne(r)}catch(e){await put({...r,syncState:'error'})}}let q=await cloud.from('transactions').select('*').eq('event_id',EVENT).order('created_at',{ascending:false});if(q.error)throw q.error;for(let x of q.data||[]){let pu=x.photo_path?cloud.storage.from(BUCKET).getPublicUrl(x.photo_path).data.publicUrl:null;await put({id:x.id,eventId:x.event_id,createdAt:x.created_at,updatedAt:x.updated_at,deviceId:x.device_id,cashierName:x.cashier_name,kind:x.kind,categoryName:x.category_name,subjectName:x.subject_name,authorshipStatus:x.authorship_status,amount:Number(x.amount),paymentMethod:x.payment_method,accountName:x.account_name,note:x.note||'',photoBlob:null,photoPath:x.photo_path,photoUrl:pu,voided:x.voided,dirty:false,syncState:'synced'})}$('onlineBadge').textContent='онлайн · сервер';await showJournal()}catch(e){$('onlineBadge').textContent='ошибка сервера';toast(e.message)}}async function showJournal(){let rs=(await all()).sort((a,b)=>new Date(b.createdAt)-new Date(a.createdAt)),valid=rs.filter(x=>!x.voided),si=valid.filter(x=>x.kind==='income').reduce((s,x)=>s+x.amount,0),so=valid.filter(x=>x.kind==='expense').reduce((s,x)=>s+x.amount,0);$('sumIn').textContent=money(si);$('sumOut').textContent=money(so);$('balance').textContent=money(si-so);$('list').innerHTML=rs.map(x=>`<article class="card">${x.photoUrl?`<img src="${x.photoUrl}">`:''}<strong>${x.kind==='income'?'Приход':'Расход'} · ${x.categoryName}</strong><p>${x.subjectName} · ${x.paymentMethod}${x.accountName?' · '+x.accountName:''}</p><p class="muted">Кассир: ${x.cashierName}${x.note?' · '+x.note:''}<br>${new Date(x.createdAt).toLocaleString('ru-RU')}</p><span class="status ${x.dirty?(x.syncState==='error'?'error':'pending'):'synced'}">${x.dirty?'ждёт отправки':'на сервере'}</span><div class="money">${x.kind==='income'?'+':'−'}${money(x.amount)}</div></article>`).join('')||'<p class="muted">Операций пока нет</p>'}document.addEventListener('click',e=>{let b=e.target.closest('button');if(!b)return;if(b.dataset.kind){kind=b.dataset.kind;category='';document.querySelectorAll('[data-kind]').forEach(x=>x.classList.toggle('active',x===b));render()}if(b.dataset.payment){payment=b.dataset.payment;document.querySelectorAll('[data-payment]').forEach(x=>x.classList.toggle('active',x===b));render()}if(b.dataset.cat){category=b.dataset.cat;render()}if(b.dataset.sub){subject=b.dataset.sub;render()}if(b.dataset.acc){account=b.dataset.acc;render()}if(b.dataset.view){document.querySelectorAll('.view').forEach(x=>x.classList.toggle('active',x.id===b.dataset.view));document.querySelectorAll('nav button').forEach(x=>x.classList.toggle('active',x===b));if(b.dataset.view==='journal')showJournal()}if(b.dataset.toggleSub!==undefined){cfg.subjects[b.dataset.toggleSub].active=!cfg.subjects[b.dataset.toggleSub].active;persist()}if(b.dataset.toggleAcc!==undefined){cfg.accounts[b.dataset.toggleAcc].active=!cfg.accounts[b.dataset.toggleAcc].active;persist()}});$('testBtn').onclick=()=>{$('note').value=$('note').value?'ТЕСТ · '+$('note').value:'ТЕСТ'};$('photo').onchange=async e=>{photoBlob=await shrink(e.target.files[0]);$('preview').src=URL.createObjectURL(photoBlob);$('preview').classList.remove('hidden')};$('save').onclick=()=>{try{let d=draft();if(kind==='income'&&payment!=='Наличные'){let a=cfg.accounts.find(x=>x.name===account);$('qrSummary').textContent=`${subject} · ${money(d.a)} · ${account}`;$('qr').classList.toggle('hidden',!a?.qr);$('noQr').classList.toggle('hidden',!!a?.qr);if(a?.qr)$('qr').src=a.qr;$('qrPanel').classList.remove('hidden')}else saveRecord()}catch(e){toast(e.message)}};$('confirm').onclick=saveRecord;$('back').onclick=()=>$('qrPanel').classList.add('hidden');$('saveCashier').onclick=()=>{cfg.cashier=$('cashier').value.trim();persist();toast('Кассир сохранён')};$('addSubject').onclick=()=>{let n=$('newSubject').value.trim();if(n){cfg.subjects.push({name:n,active:true});$('newSubject').value='';persist()}};$('addAccount').onclick=()=>{let n=$('newAccount').value.trim(),f=$('newQr').files[0];if(!n)return toast('Введи имя счёта');let done=qr=>{cfg.accounts.push({name:n,active:true,qr});$('newAccount').value='';$('newQr').value='';persist()};if(f){let r=new FileReader();r.onload=()=>done(r.result);r.readAsDataURL(f)}else done(null)};$('sync').onclick=syncAll;window.addEventListener('online',syncAll);render();showJournal();syncAll();if('serviceWorker'in navigator)navigator.serviceWorker.register('./service-worker.js');</script></body></html>
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#f3f3ef">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <title>Потлач — касса</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <style>
+    :root{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#111;background:#f3f3ef;--bg:#f3f3ef;--card:#fff;--line:#d5d5cf;--muted:#70706a;--green:#16853f;--red:#b42318;--amber:#7a5600}
+    *{box-sizing:border-box}body{margin:0;padding:0 0 calc(82px + env(safe-area-inset-bottom));background:var(--bg)}button,input,select,textarea{font:inherit}button{cursor:pointer}
+    header{position:sticky;top:0;z-index:5;padding:calc(14px + env(safe-area-inset-top)) 16px 12px;background:rgba(243,243,239,.95);backdrop-filter:blur(12px);border-bottom:1px solid var(--line)}
+    header strong{font-size:18px}header small{display:block;color:var(--muted);margin-top:4px}
+    main{max-width:680px;margin:auto;padding:14px}.view{display:none}.view.active{display:block}.hidden{display:none!important}
+    fieldset{border:0;padding:0;margin:0 0 18px}legend{font-weight:800;margin-bottom:9px}legend small{font-weight:500;color:var(--muted)}
+    .grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}.choice,button,label.file{min-height:50px;border:1px solid var(--line);border-radius:13px;background:var(--card);padding:11px;font-weight:750;color:#111}.choice.active{border:2px solid #111;background:#e9e9e4;padding:10px}
+    input,select,textarea{width:100%;padding:13px;border:1px solid var(--line);border-radius:12px;background:var(--card);color:#111}.amount{font-size:27px;font-weight:800}.primary{width:100%;border:0;background:#111;color:#fff;font-size:17px}.success{width:100%;border:0;background:var(--green);color:#fff;font-size:17px}.danger{color:var(--red)}
+    .muted{color:var(--muted);font-size:13px}.warning{padding:11px;border-radius:12px;background:#fff1c7;color:var(--amber);margin-bottom:12px}.ok{padding:11px;border-radius:12px;background:#ddf6e5;color:#145d2f;margin-bottom:12px}
+    .photo{display:block;width:100%;max-height:260px;object-fit:contain;border-radius:12px;margin-top:8px;background:#fff}.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px;margin-bottom:10px;overflow:hidden}.card img.thumb{width:86px;height:86px;object-fit:cover;border-radius:10px;float:left;margin-right:10px}.money{font-size:20px;font-weight:850}.status{font-size:12px;font-weight:700}.pending{color:var(--amber)}.synced{color:var(--green)}.error{color:var(--red)}
+    .row{display:flex;gap:8px}.row>*{flex:1}.summary{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px}.summary div{background:#fff;border-radius:12px;padding:10px}.summary small{color:var(--muted)}.summary strong{display:block;margin-top:4px}
+    nav{position:fixed;bottom:0;left:0;right:0;z-index:20;display:grid;grid-template-columns:repeat(3,1fr);padding:8px 10px calc(8px + env(safe-area-inset-bottom));background:rgba(255,255,255,.96);backdrop-filter:blur(12px);border-top:1px solid #ddd}nav button{border:0;background:transparent}nav button.active{background:#e9e9e4}
+    #toast{position:fixed;bottom:calc(90px + env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);background:#111;color:#fff;padding:12px 16px;border-radius:12px;z-index:40;max-width:calc(100% - 30px);font-weight:700}.qr{display:block;width:min(80vw,340px);margin:12px auto;background:#fff;border-radius:12px}
+    textarea{min-height:70px}.settings-item{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 0;border-top:1px solid #eee}.settings-item:first-child{border-top:0}.settings-actions{display:flex;gap:6px;align-items:center}.smallbtn{min-height:38px;padding:7px 10px}.file input{display:none}
+    @media(min-width:560px){.grid{grid-template-columns:repeat(3,minmax(0,1fr))}}@media(max-width:390px){.row.stack-small{display:grid}}
+  </style>
+</head>
+<body>
+<header>
+  <strong>ПОТЛАЧ — КАССА</strong>
+  <small><span id="cashierBadge">кассир не задан</span> · <span id="onlineBadge">локально</span></small>
+</header>
+
+<main>
+  <section id="operationView" class="view active">
+    <div id="profileWarning" class="warning">Сначала задай имя кассира в настройках.</div>
+
+    <fieldset>
+      <legend>1. Тип</legend>
+      <div class="grid">
+        <button type="button" class="choice active" data-kind="income">Приход</button>
+        <button type="button" class="choice" data-kind="expense">Расход</button>
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>2. Категория</legend>
+      <div id="categories" class="grid"></div>
+    </fieldset>
+
+    <fieldset>
+      <legend>3. Автор / направление</legend>
+      <div id="subjects" class="grid"></div>
+    </fieldset>
+
+    <fieldset>
+      <legend>4. Сумма</legend>
+      <input id="amount" class="amount" inputmode="numeric" pattern="[0-9]*" placeholder="3000">
+    </fieldset>
+
+    <fieldset>
+      <legend>5. Оплата</legend>
+      <div class="grid">
+        <button type="button" class="choice active" data-payment="СБП / перевод">СБП / перевод</button>
+        <button type="button" class="choice" data-payment="Наличные">Наличные</button>
+      </div>
+    </fieldset>
+
+    <fieldset id="accountBlock">
+      <legend id="accountLegend">6. На чей счёт</legend>
+      <div id="accounts" class="grid"></div>
+    </fieldset>
+
+    <fieldset>
+      <legend>7. Комментарий <small>необязательно</small></legend>
+      <div class="row stack-small">
+        <textarea id="note" placeholder="ТЕСТ, спорное авторство, с какой полки"></textarea>
+        <button id="testBtn" type="button">ТЕСТ</button>
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>8. Фото <small id="photoHint">необязательно</small></legend>
+      <label class="file" style="display:block;text-align:center">Сфотографировать работу / чек
+        <input id="photo" type="file" accept="image/*" capture="environment">
+      </label>
+      <img id="preview" class="photo hidden" alt="Предпросмотр">
+    </fieldset>
+
+    <button id="save" type="button" class="primary">Показать QR</button>
+
+    <div id="qrPanel" class="card hidden">
+      <div id="qrSummary"></div>
+      <img id="qr" class="qr hidden" alt="QR-код">
+      <div id="noQr" class="warning hidden">QR для этого счёта не загружен.</div>
+      <button id="confirm" type="button" class="success">Оплачено — записать</button>
+      <button id="back" type="button" style="width:100%;margin-top:8px">Назад</button>
+    </div>
+  </section>
+
+  <section id="journalView" class="view">
+    <div class="summary">
+      <div><small>Приход</small><strong id="sumIn">0 ₽</strong></div>
+      <div><small>Расход</small><strong id="sumOut">0 ₽</strong></div>
+      <div><small>Остаток</small><strong id="balance">0 ₽</strong></div>
+    </div>
+    <button id="sync" type="button" style="width:100%;margin-bottom:10px">Синхронизировать</button>
+    <div id="list"></div>
+  </section>
+
+  <section id="settingsView" class="view">
+    <div class="card">
+      <h3>Этот телефон</h3>
+      <div class="row">
+        <input id="cashier" placeholder="Имя кассира">
+        <button id="saveCashier" type="button">Сохранить</button>
+      </div>
+      <p class="muted">Имя записывается в каждую операцию. Пароль не нужен.</p>
+    </div>
+
+    <div class="card">
+      <h3>Авторы и направления</h3>
+      <div class="row">
+        <input id="newSubject" placeholder="Катя, Тёма, Бар">
+        <button id="addSubject" type="button">Добавить</button>
+      </div>
+      <div id="subjectSettings"></div>
+    </div>
+
+    <div class="card">
+      <h3>Категории</h3>
+      <input id="newCategory" placeholder="Название категории">
+      <div class="row" style="margin-top:8px">
+        <select id="newCategoryKind">
+          <option value="income">Приход</option>
+          <option value="expense">Расход</option>
+          <option value="both">Оба типа</option>
+        </select>
+        <button id="addCategory" type="button">Добавить</button>
+      </div>
+      <div id="categorySettings"></div>
+    </div>
+
+    <div class="card">
+      <h3>Счета и QR</h3>
+      <input id="newAccount" placeholder="Маргарита">
+      <label class="file" style="display:block;margin-top:8px;text-align:center">Выбрать QR
+        <input id="newQr" type="file" accept="image/*">
+      </label>
+      <button id="addAccount" type="button" style="width:100%;margin-top:8px">Добавить счёт</button>
+      <div id="accountSettings"></div>
+    </div>
+  </section>
+</main>
+
+<nav>
+  <button type="button" class="active" data-nav="operationView">Операция</button>
+  <button type="button" data-nav="journalView">Журнал</button>
+  <button type="button" data-nav="settingsView">Настройки</button>
+</nav>
+
+<div id="toast" class="hidden"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script>
+'use strict';
+
+const SUPABASE_URL = 'https://dvgsixehiscqemfaddpn.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_n2Ro5cvbbK0h7P4i6FN4dA_u-zHQCru';
+const EVENT_ID = 'potlach-24-2026';
+const BUCKET = 'transaction-photos';
+const CONFIG_KEY = 'potlach-config-v2';
+const LEGACY_CONFIG_KEY = 'cfg';
+const DB_NAME = 'potlach-public-v1';
+const STORE_NAME = 'tx';
+
+const $ = (id) => document.getElementById(id);
+const money = (n) => new Intl.NumberFormat('ru-RU').format(Number(n) || 0) + ' ₽';
+const uuid = () => (crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(16).slice(2)}`);
+const escapeHtml = (v) => String(v ?? '').replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
+const DEVICE_ID = localStorage.getItem('potlach-device-id') || uuid();
+localStorage.setItem('potlach-device-id', DEVICE_ID);
+
+const cloud = window.supabase?.createClient
+  ? window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {auth:{persistSession:false,autoRefreshToken:false,detectSessionInUrl:false}})
+  : null;
+
+const defaults = {
+  cashier: '',
+  subjects: [
+    {id:'subject-unknown',name:'Автор неизвестен',active:true,locked:true},
+    {id:'subject-bar',name:'Бар',active:true,locked:true}
+  ],
+  categories: [
+    {id:'cat-art',name:'Продажа работы',kind:'income',active:true},
+    {id:'cat-bar-in',name:'Бар — продажи',kind:'income',active:true},
+    {id:'cat-bar-out',name:'Бар — закупка',kind:'expense',active:true},
+    {id:'cat-org',name:'Организационные расходы',kind:'expense',active:true},
+    {id:'cat-other',name:'Прочее',kind:'both',active:true}
+  ],
+  accounts: []
+};
+
+function loadConfig() {
+  let raw = null;
+  try {
+    raw = JSON.parse(localStorage.getItem(CONFIG_KEY) || localStorage.getItem(LEGACY_CONFIG_KEY) || 'null');
+  } catch {}
+  if (!raw) return structuredClone(defaults);
+  const legacySubjects = Array.isArray(raw.subjects) ? raw.subjects : defaults.subjects;
+  const legacyAccounts = Array.isArray(raw.accounts) ? raw.accounts : [];
+  const cfg = {
+    cashier: String(raw.cashier || raw.cashierName || ''),
+    subjects: legacySubjects.map((x, i) => ({
+      id: x.id || `subject-${i}-${uuid()}`,
+      name: String(x.name || '').trim(),
+      active: x.active !== false,
+      locked: Boolean(x.locked || x.id === 'subject-unknown' || x.id === 'subject-bar')
+    })).filter(x => x.name),
+    categories: Array.isArray(raw.categories) && raw.categories.length
+      ? raw.categories.map((x, i) => ({id:x.id || `cat-${i}-${uuid()}`,name:String(x.name||'').trim(),kind:['income','expense','both'].includes(x.kind)?x.kind:'both',active:x.active!==false})).filter(x=>x.name)
+      : structuredClone(defaults.categories),
+    accounts: legacyAccounts.map((x, i) => ({id:x.id || `acc-${i}-${uuid()}`,name:String(x.name||'').trim(),active:x.active!==false,qr:x.qr || x.qrDataUrl || null})).filter(x=>x.name)
+  };
+  if (!cfg.subjects.some(x => /Автор неизвестен/i.test(x.name))) cfg.subjects.unshift(structuredClone(defaults.subjects[0]));
+  if (!cfg.subjects.some(x => x.name === 'Бар')) cfg.subjects.push(structuredClone(defaults.subjects[1]));
+  return cfg;
+}
+
+let cfg = loadConfig();
+let kind = 'income';
+let payment = 'СБП / перевод';
+let categoryId = '';
+let subjectId = '';
+let accountId = '';
+let photoBlob = null;
+let syncing = false;
+
+function persist() {
+  localStorage.setItem(CONFIG_KEY, JSON.stringify(cfg));
+  localStorage.setItem(LEGACY_CONFIG_KEY, JSON.stringify(cfg));
+  render();
+}
+
+function toast(text) {
+  $('toast').textContent = text;
+  $('toast').classList.remove('hidden');
+  clearTimeout(toast.timer);
+  toast.timer = setTimeout(() => $('toast').classList.add('hidden'), 2600);
+}
+
+function openDb() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(DB_NAME, 1);
+    req.onupgradeneeded = () => {
+      if (!req.result.objectStoreNames.contains(STORE_NAME)) {
+        req.result.createObjectStore(STORE_NAME, {keyPath:'id'});
+      }
+    };
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+async function dbPut(record) {
+  const db = await openDb();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE_NAME, 'readwrite');
+    tx.objectStore(STORE_NAME).put(record);
+    tx.oncomplete = () => { db.close(); resolve(record); };
+    tx.onerror = () => { db.close(); reject(tx.error); };
+  });
+}
+
+async function dbAll() {
+  const db = await openDb();
+  return new Promise((resolve, reject) => {
+    const req = db.transaction(STORE_NAME, 'readonly').objectStore(STORE_NAME).getAll();
+    req.onsuccess = () => { db.close(); resolve(req.result || []); };
+    req.onerror = () => { db.close(); reject(req.error); };
+  });
+}
+
+async function dbGet(id) {
+  const db = await openDb();
+  return new Promise((resolve, reject) => {
+    const req = db.transaction(STORE_NAME, 'readonly').objectStore(STORE_NAME).get(id);
+    req.onsuccess = () => { db.close(); resolve(req.result || null); };
+    req.onerror = () => { db.close(); reject(req.error); };
+  });
+}
+
+function activeCategories() {
+  return cfg.categories.filter(x => x.active && (x.kind === kind || x.kind === 'both'));
+}
+function activeSubjects() { return cfg.subjects.filter(x => x.active); }
+function activeAccounts() { return cfg.accounts.filter(x => x.active); }
+
+function selectedCategory() { return cfg.categories.find(x => x.id === categoryId); }
+function selectedSubject() { return cfg.subjects.find(x => x.id === subjectId); }
+function selectedAccount() { return cfg.accounts.find(x => x.id === accountId); }
+function subjectUnknown() { return /неизвест|спорн/i.test(selectedSubject()?.name || ''); }
+
+function renderOperation() {
+  const cats = activeCategories();
+  const subs = activeSubjects();
+  const accs = activeAccounts();
+  if (!cats.some(x => x.id === categoryId)) categoryId = '';
+  if (!subs.some(x => x.id === subjectId)) subjectId = '';
+  if (!accs.some(x => x.id === accountId)) accountId = '';
+
+  $('cashierBadge').textContent = cfg.cashier ? `кассир: ${cfg.cashier}` : 'кассир не задан';
+  $('profileWarning').classList.toggle('hidden', Boolean(cfg.cashier));
+
+  $('categories').innerHTML = cats.map(x => `<button type="button" class="choice ${x.id===categoryId?'active':''}" data-category="${escapeHtml(x.id)}">${escapeHtml(x.name)}</button>`).join('') || '<span class="muted">Нет активных категорий.</span>';
+  $('subjects').innerHTML = subs.map(x => `<button type="button" class="choice ${x.id===subjectId?'active':''}" data-subject="${escapeHtml(x.id)}">${escapeHtml(x.name)}</button>`).join('') || '<span class="muted">Нет активных авторов.</span>';
+  $('accounts').innerHTML = accs.map(x => `<button type="button" class="choice ${x.id===accountId?'active':''}" data-account="${escapeHtml(x.id)}">${escapeHtml(x.name)}</button>`).join('') || '<span class="muted">Добавь счёт в настройках.</span>';
+
+  document.querySelectorAll('[data-kind]').forEach(b => b.classList.toggle('active', b.dataset.kind === kind));
+  document.querySelectorAll('[data-payment]').forEach(b => b.classList.toggle('active', b.dataset.payment === payment));
+
+  $('accountBlock').classList.toggle('hidden', payment === 'Наличные');
+  $('accountLegend').textContent = kind === 'income' ? '6. На чей счёт' : '6. С чьего счёта';
+  $('photoHint').textContent = subjectUnknown() ? 'обязательно для неизвестного автора' : 'необязательно';
+  $('save').textContent = kind === 'income' && payment !== 'Наличные' ? 'Показать QR' : kind === 'income' ? 'Записать приход наличными' : 'Записать расход';
+}
+
+function kindLabel(v) { return v === 'income' ? 'приход' : v === 'expense' ? 'расход' : 'оба типа'; }
+
+function renderSettings() {
+  $('cashier').value = cfg.cashier;
+  $('subjectSettings').innerHTML = cfg.subjects.map((x) => `
+    <div class="settings-item">
+      <span><strong>${escapeHtml(x.name)}</strong><br><small class="muted">${x.active?'показывается':'скрыт'}</small></span>
+      <span class="settings-actions">
+        <button type="button" class="smallbtn" data-toggle-subject="${escapeHtml(x.id)}">${x.active?'Скрыть':'Показать'}</button>
+        ${x.locked?'':`<button type="button" class="smallbtn danger" data-delete-subject="${escapeHtml(x.id)}">×</button>`}
+      </span>
+    </div>`).join('');
+
+  $('categorySettings').innerHTML = cfg.categories.map((x) => `
+    <div class="settings-item">
+      <span><strong>${escapeHtml(x.name)}</strong><br><small class="muted">${kindLabel(x.kind)} · ${x.active?'активна':'скрыта'}</small></span>
+      <span class="settings-actions">
+        <button type="button" class="smallbtn" data-toggle-category="${escapeHtml(x.id)}">${x.active?'Скрыть':'Показать'}</button>
+        <button type="button" class="smallbtn danger" data-delete-category="${escapeHtml(x.id)}">×</button>
+      </span>
+    </div>`).join('');
+
+  $('accountSettings').innerHTML = cfg.accounts.map((x) => `
+    <div class="settings-item">
+      <span><strong>${escapeHtml(x.name)}</strong><br><small class="muted">${x.qr?'QR есть':'QR нет'} · ${x.active?'активен':'скрыт'}</small></span>
+      <span class="settings-actions">
+        <label class="file smallbtn">QR<input type="file" accept="image/*" data-replace-qr="${escapeHtml(x.id)}"></label>
+        <button type="button" class="smallbtn" data-toggle-account="${escapeHtml(x.id)}">${x.active?'Скрыть':'Показать'}</button>
+        <button type="button" class="smallbtn danger" data-delete-account="${escapeHtml(x.id)}">×</button>
+      </span>
+    </div>`).join('') || '<p class="muted">Счетов пока нет.</p>';
+}
+
+function render() {
+  renderOperation();
+  renderSettings();
+}
+
+function switchView(viewId) {
+  document.querySelectorAll('.view').forEach(v => v.classList.toggle('active', v.id === viewId));
+  document.querySelectorAll('[data-nav]').forEach(b => b.classList.toggle('active', b.dataset.nav === viewId));
+  window.scrollTo({top:0,behavior:'instant'});
+  if (viewId === 'journalView') showJournal();
+}
+
+function validateDraft() {
+  const amount = Number($('amount').value);
+  if (!cfg.cashier.trim()) throw new Error('Укажи имя кассира');
+  if (!selectedCategory()) throw new Error('Выбери категорию');
+  if (!selectedSubject()) throw new Error('Выбери автора или направление');
+  if (!(amount > 0)) throw new Error('Введи сумму');
+  if (payment !== 'Наличные' && !selectedAccount()) throw new Error('Выбери счёт');
+  if (subjectUnknown() && !photoBlob) throw new Error('Для неизвестного автора нужно фото');
+  return {amount, note:$('note').value.trim()};
+}
+
+async function shrinkPhoto(file) {
+  const image = new Image();
+  const url = URL.createObjectURL(file);
+  await new Promise((resolve, reject) => { image.onload = resolve; image.onerror = reject; image.src = url; });
+  const scale = Math.min(1, 1200 / Math.max(image.width, image.height));
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.max(1, Math.round(image.width * scale));
+  canvas.height = Math.max(1, Math.round(image.height * scale));
+  canvas.getContext('2d').drawImage(image, 0, 0, canvas.width, canvas.height);
+  URL.revokeObjectURL(url);
+  return new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', .76));
+}
+
+function resetOperationForm() {
+  $('amount').value = '';
+  $('note').value = '';
+  $('photo').value = '';
+  $('preview').src = '';
+  $('preview').classList.add('hidden');
+  photoBlob = null;
+  categoryId = '';
+  subjectId = '';
+  accountId = '';
+  $('qrPanel').classList.add('hidden');
+  $('save').classList.remove('hidden');
+  renderOperation();
+}
+
+async function saveRecord() {
+  try {
+    const draft = validateDraft();
+    const now = new Date().toISOString();
+    const record = {
+      id: uuid(),
+      eventId: EVENT_ID,
+      createdAt: now,
+      updatedAt: now,
+      deviceId: DEVICE_ID,
+      cashierName: cfg.cashier.trim(),
+      kind,
+      categoryName: selectedCategory().name,
+      subjectName: selectedSubject().name,
+      authorshipStatus: subjectUnknown() ? 'unknown' : 'known',
+      amount: draft.amount,
+      paymentMethod: payment,
+      accountName: payment === 'Наличные' ? null : selectedAccount().name,
+      note: draft.note,
+      photoBlob,
+      photoPath: null,
+      photoUrl: null,
+      voided: false,
+      dirty: true,
+      syncState: 'pending'
+    };
+    await dbPut(record);
+    toast(`✅ Записано: ${money(draft.amount)}`);
+    resetOperationForm();
+    await showJournal();
+    syncAll();
+  } catch (error) {
+    toast(error.message || 'Не удалось записать');
+  }
+}
+
+async function syncOne(record) {
+  if (!cloud) throw new Error('Серверная библиотека не загрузилась');
+  let photoPath = record.photoPath || null;
+  if (record.photoBlob && !photoPath) {
+    photoPath = `${EVENT_ID}/${record.id}.jpg`;
+    const upload = await cloud.storage.from(BUCKET).upload(photoPath, record.photoBlob, {contentType:'image/jpeg',upsert:true});
+    if (upload.error) throw upload.error;
+  }
+  const row = {
+    id: record.id,
+    event_id: EVENT_ID,
+    created_at: record.createdAt,
+    updated_at: new Date().toISOString(),
+    device_id: record.deviceId,
+    cashier_name: record.cashierName,
+    kind: record.kind,
+    category_name: record.categoryName,
+    subject_name: record.subjectName,
+    authorship_status: record.authorshipStatus,
+    amount: record.amount,
+    payment_method: record.paymentMethod,
+    account_name: record.accountName,
+    note: record.note || null,
+    photo_path: photoPath,
+    voided: Boolean(record.voided)
+  };
+  const upsert = await cloud.from('transactions').upsert(row);
+  if (upsert.error) throw upsert.error;
+  const publicUrl = photoPath ? cloud.storage.from(BUCKET).getPublicUrl(photoPath).data.publicUrl : null;
+  await dbPut({...record,photoBlob:null,photoPath,photoUrl:publicUrl,dirty:false,syncState:'synced'});
+}
+
+async function syncAll() {
+  if (syncing || !navigator.onLine || !cloud) return;
+  syncing = true;
+  $('onlineBadge').textContent = 'синхронизация…';
+  try {
+    const local = await dbAll();
+    for (const record of local.filter(x => x.dirty)) {
+      try {
+        await syncOne(record);
+      } catch (error) {
+        await dbPut({...record,syncState:'error'});
+      }
+    }
+
+    const response = await cloud.from('transactions').select('*').eq('event_id', EVENT_ID).order('created_at', {ascending:false});
+    if (response.error) throw response.error;
+    for (const row of response.data || []) {
+      const existing = await dbGet(row.id);
+      if (existing?.dirty) continue;
+      const photoUrl = row.photo_path ? cloud.storage.from(BUCKET).getPublicUrl(row.photo_path).data.publicUrl : null;
+      await dbPut({
+        id:row.id,eventId:row.event_id,createdAt:row.created_at,updatedAt:row.updated_at,
+        deviceId:row.device_id,cashierName:row.cashier_name,kind:row.kind,
+        categoryName:row.category_name,subjectName:row.subject_name,
+        authorshipStatus:row.authorship_status,amount:Number(row.amount),
+        paymentMethod:row.payment_method,accountName:row.account_name,note:row.note||'',
+        photoBlob:null,photoPath:row.photo_path,photoUrl,voided:Boolean(row.voided),
+        dirty:false,syncState:'synced'
+      });
+    }
+    $('onlineBadge').textContent = 'онлайн · сервер';
+    await showJournal();
+  } catch (error) {
+    $('onlineBadge').textContent = 'ошибка сервера';
+    toast(error.message || 'Ошибка синхронизации');
+  } finally {
+    syncing = false;
+  }
+}
+
+async function showJournal() {
+  const records = (await dbAll()).sort((a,b) => new Date(b.createdAt) - new Date(a.createdAt));
+  const valid = records.filter(x => !x.voided);
+  const income = valid.filter(x => x.kind === 'income').reduce((s,x) => s + Number(x.amount), 0);
+  const expense = valid.filter(x => x.kind === 'expense').reduce((s,x) => s + Number(x.amount), 0);
+  $('sumIn').textContent = money(income);
+  $('sumOut').textContent = money(expense);
+  $('balance').textContent = money(income - expense);
+
+  $('list').innerHTML = records.map((x) => {
+    const state = x.dirty ? (x.syncState === 'error' ? ['ошибка отправки','error'] : ['ждёт отправки','pending']) : ['на сервере','synced'];
+    const img = x.photoUrl || (x.photoBlob ? URL.createObjectURL(x.photoBlob) : '');
+    return `<article class="card" style="${x.voided?'opacity:.55;text-decoration:line-through':''}">
+      ${img?`<img class="thumb" src="${escapeHtml(img)}" alt="Фото операции">`:''}
+      <strong>${x.kind==='income'?'Приход':'Расход'} · ${escapeHtml(x.categoryName)}</strong>
+      <div class="money">${x.kind==='income'?'+':'−'}${money(x.amount)}</div>
+      <div class="muted">${escapeHtml(x.subjectName)} · ${escapeHtml(x.paymentMethod)}${x.accountName?` · ${escapeHtml(x.accountName)}`:''}</div>
+      <div class="muted">Кассир: ${escapeHtml(x.cashierName)}${x.note?` · ${escapeHtml(x.note)}`:''}</div>
+      <div class="muted">${new Date(x.createdAt).toLocaleString('ru-RU')}</div>
+      <div class="status ${state[1]}">${state[0]}</div>
+      ${x.voided?'':`<button type="button" class="smallbtn danger" data-void="${escapeHtml(x.id)}">Отменить запись</button>`}
+    </article>`;
+  }).join('') || '<p class="muted">Операций пока нет.</p>';
+}
+
+async function fileToDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(file);
+  });
+}
+
+document.querySelectorAll('[data-nav]').forEach((button) => {
+  button.addEventListener('click', () => switchView(button.dataset.nav));
+});
+document.querySelectorAll('[data-kind]').forEach((button) => {
+  button.addEventListener('click', () => { kind = button.dataset.kind; categoryId = ''; renderOperation(); });
+});
+document.querySelectorAll('[data-payment]').forEach((button) => {
+  button.addEventListener('click', () => { payment = button.dataset.payment; accountId = ''; renderOperation(); });
+});
+
+$('categories').addEventListener('click', (event) => {
+  const button = event.target.closest('[data-category]');
+  if (!button) return;
+  categoryId = button.dataset.category;
+  renderOperation();
+});
+$('subjects').addEventListener('click', (event) => {
+  const button = event.target.closest('[data-subject]');
+  if (!button) return;
+  subjectId = button.dataset.subject;
+  renderOperation();
+});
+$('accounts').addEventListener('click', (event) => {
+  const button = event.target.closest('[data-account]');
+  if (!button) return;
+  accountId = button.dataset.account;
+  renderOperation();
+});
+
+$('testBtn').addEventListener('click', () => { $('note').value = $('note').value.trim() ? `${$('note').value.trim()} · ТЕСТ` : 'ТЕСТ'; });
+$('photo').addEventListener('change', async () => {
+  const file = $('photo').files?.[0];
+  if (!file) return;
+  try {
+    photoBlob = await shrinkPhoto(file);
+    $('preview').src = URL.createObjectURL(photoBlob);
+    $('preview').classList.remove('hidden');
+  } catch {
+    toast('Не удалось обработать фото');
+  }
+});
+
+$('save').addEventListener('click', async () => {
+  try {
+    const draft = validateDraft();
+    if (kind === 'income' && payment !== 'Наличные') {
+      const acc = selectedAccount();
+      $('qrSummary').innerHTML = `<strong>${escapeHtml(selectedCategory().name)}</strong><br>${escapeHtml(selectedSubject().name)} · <span class="money">${money(draft.amount)}</span><br>Оплата: ${escapeHtml(acc.name)}`;
+      $('qr').classList.toggle('hidden', !acc.qr);
+      $('noQr').classList.toggle('hidden', Boolean(acc.qr));
+      if (acc.qr) $('qr').src = acc.qr;
+      $('qrPanel').classList.remove('hidden');
+      $('save').classList.add('hidden');
+      $('qrPanel').scrollIntoView({behavior:'smooth',block:'start'});
+    } else {
+      await saveRecord();
+    }
+  } catch (error) {
+    toast(error.message || 'Проверь поля');
+  }
+});
+$('confirm').addEventListener('click', saveRecord);
+$('back').addEventListener('click', () => {
+  $('qrPanel').classList.add('hidden');
+  $('save').classList.remove('hidden');
+});
+
+$('saveCashier').addEventListener('click', () => {
+  const name = $('cashier').value.trim();
+  if (!name) return toast('Введи имя кассира');
+  cfg.cashier = name;
+  persist();
+  toast('Имя кассира сохранено');
+});
+
+$('addSubject').addEventListener('click', () => {
+  const name = $('newSubject').value.trim();
+  if (!name) return toast('Введи имя автора');
+  cfg.subjects.push({id:`subject-${uuid()}`,name,active:true,locked:false});
+  $('newSubject').value = '';
+  persist();
+});
+
+$('addCategory').addEventListener('click', () => {
+  const name = $('newCategory').value.trim();
+  if (!name) return toast('Введи название категории');
+  cfg.categories.push({id:`cat-${uuid()}`,name,kind:$('newCategoryKind').value,active:true});
+  $('newCategory').value = '';
+  persist();
+});
+
+$('addAccount').addEventListener('click', async () => {
+  const name = $('newAccount').value.trim();
+  const file = $('newQr').files?.[0];
+  if (!name) return toast('Введи имя получателя');
+  let qr = null;
+  if (file) qr = await fileToDataUrl(file);
+  cfg.accounts.push({id:`acc-${uuid()}`,name,active:true,qr});
+  $('newAccount').value = '';
+  $('newQr').value = '';
+  persist();
+});
+
+$('settingsView').addEventListener('click', async (event) => {
+  const toggleSubject = event.target.closest('[data-toggle-subject]');
+  if (toggleSubject) {
+    const item = cfg.subjects.find(x => x.id === toggleSubject.dataset.toggleSubject);
+    if (item) { item.active = !item.active; persist(); }
+    return;
+  }
+  const deleteSubject = event.target.closest('[data-delete-subject]');
+  if (deleteSubject) {
+    cfg.subjects = cfg.subjects.filter(x => x.id !== deleteSubject.dataset.deleteSubject);
+    persist(); return;
+  }
+  const toggleCategory = event.target.closest('[data-toggle-category]');
+  if (toggleCategory) {
+    const item = cfg.categories.find(x => x.id === toggleCategory.dataset.toggleCategory);
+    if (item) { item.active = !item.active; persist(); }
+    return;
+  }
+  const deleteCategory = event.target.closest('[data-delete-category]');
+  if (deleteCategory) {
+    cfg.categories = cfg.categories.filter(x => x.id !== deleteCategory.dataset.deleteCategory);
+    persist(); return;
+  }
+  const toggleAccount = event.target.closest('[data-toggle-account]');
+  if (toggleAccount) {
+    const item = cfg.accounts.find(x => x.id === toggleAccount.dataset.toggleAccount);
+    if (item) { item.active = !item.active; persist(); }
+    return;
+  }
+  const deleteAccount = event.target.closest('[data-delete-account]');
+  if (deleteAccount) {
+    cfg.accounts = cfg.accounts.filter(x => x.id !== deleteAccount.dataset.deleteAccount);
+    persist(); return;
+  }
+});
+
+$('settingsView').addEventListener('change', async (event) => {
+  const input = event.target.closest('[data-replace-qr]');
+  if (!input || !input.files?.[0]) return;
+  const item = cfg.accounts.find(x => x.id === input.dataset.replaceQr);
+  if (!item) return;
+  item.qr = await fileToDataUrl(input.files[0]);
+  persist();
+  toast('QR обновлён');
+});
+
+$('sync').addEventListener('click', syncAll);
+
+$('list').addEventListener('click', async (event) => {
+  const button = event.target.closest('[data-void]');
+  if (!button) return;
+  const record = await dbGet(button.dataset.void);
+  if (!record) return;
+  await dbPut({...record,voided:true,dirty:true,syncState:'pending',updatedAt:new Date().toISOString()});
+  await showJournal();
+  syncAll();
+});
+
+window.addEventListener('online', syncAll);
+window.addEventListener('offline', () => $('onlineBadge').textContent = 'офлайн · локально');
+
+render();
+showJournal();
+syncAll();
+
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('./sw.js').catch(() => {});
+}
+</script>
+</body>
+</html>
